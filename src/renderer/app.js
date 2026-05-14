@@ -30,6 +30,7 @@ const clockCalendar = document.querySelector('#clockCalendar');
 const clockBtn = document.querySelector('#clockBtn');
 const startDayBtn = document.querySelector('#startDayBtn');
 const awayBtn = document.querySelector('#awayBtn');
+const focusModeBtn = document.querySelector('#focusModeBtn');
 const syncBtn = document.querySelector('#syncBtn');
 const syncPanel = document.querySelector('#syncPanel');
 const syncCloseBtn = document.querySelector('#syncCloseBtn');
@@ -202,6 +203,7 @@ function render(snapshot) {
   distractTime.textContent = statFormatter(snapshot.distractSeconds);
   secondsBtn.textContent = snapshot.showSeconds ? '\uCD08 \uC228\uAE30\uAE30' : '\uCD08 \uBCF4\uAE30';
   clockBtn.textContent = getClockLabel(snapshot.clockAction);
+  focusModeBtn.textContent = snapshot.focusMode ? '집중모드 종료' : '집중모드 시작';
   renderSyncStatus(snapshot.sync);
   if (dayStartPanel.hidden && document.activeElement !== dayStartInput) {
     dayStartInput.value = snapshot.dayStartTime || '06:00';
@@ -608,6 +610,11 @@ awayBtn.addEventListener('click', () => {
   });
 });
 
+focusModeBtn.addEventListener('click', () => {
+  closeMenu();
+  window.dayglass.toggleFocusMode().then(render);
+});
+
 syncBtn.addEventListener('click', () => {
   closeMenu();
   syncPanel.hidden = false;
@@ -735,3 +742,4 @@ document.querySelector('#closeBtn').addEventListener('click', () => window.daygl
 window.dayglass.getUsage().then(render);
 window.dayglass.onUsageUpdate(render);
 window.dayglass.onAwayPrompt(openAwayPanel);
+window.dayglass.onFocusWarning(() => window.alert('그만놀아!'));

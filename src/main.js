@@ -16,6 +16,7 @@ const APP_VERSION = require('../package.json').version;
 const UPDATE_RELEASE_URL = 'https://api.github.com/repos/nuri0311/dayglass/releases/latest';
 const ACTIVE_DEVICE_TIMEOUT_MS = 90 * 1000;
 const HEARTBEAT_MS = 15 * 1000;
+const FOCUS_DISTRACTION_LIMIT_SECONDS = 180;
 const APP_ICON = path.join(__dirname, 'assets', 'app-icon.png');
 const SIZE_PRESETS = {
   compact: { width: 395, height: 218 },
@@ -51,6 +52,8 @@ let supabase = null;
 let syncUser = null;
 let isActiveRecorder = true;
 let lastHeartbeatAt = 0;
+let focusDistractionStartedAt = null;
+let focusWarningShown = false;
 
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) {
@@ -124,6 +127,7 @@ function getSettings() {
     showSeconds: true,
     dayStartMinutes: DEFAULT_DAY_START_MINUTES,
     awayIdleMinutes: DEFAULT_AWAY_IDLE_MINUTES,
+    focusMode: false,
     deviceId: crypto.randomUUID(),
     sync: {
       session: null,
@@ -139,6 +143,7 @@ function getSettings() {
   usageState.__settings.sortMode ??= 'usage';
   usageState.__settings.memo ??= '';
   usageState.__settings.showSeconds ??= true;
+  usageState.__settings.focusMode ??= false;
   usageState.__settings.deviceId ??= crypto.randomUUID();
   usageState.__settings.sync ??= {};
   usageState.__settings.sync.session ??= null;
@@ -909,6 +914,12 @@ function openAwayPrompt(startAt = Date.now(), reason = 'manual') {
   return activeAway;
 }
 
+function showFocusWarning() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  showMainWindow();
+  mainWindow.webContents.send('focus:warning');
+}
+
 function getSnapshot() {
   const today = ensureToday();
   return buildDaySnapshot(getDayKey(), today);
@@ -988,6 +999,7 @@ function buildDaySnapshot(dayKey, day) {
     idleLimitSeconds: getAwayIdleSeconds(settings),
     awayIdleMinutes: settings.awayIdleMinutes,
     isPaused: Boolean(settings.paused),
+    focusMode: Boolean(settings.focusMode),
     sync: getSyncStatus(),
     showSeconds: Boolean(settings.showSeconds),
     dayStartTime: minutesToTimeValue(settings.dayStartMinutes),
@@ -1185,6 +1197,22 @@ async function pollUsage() {
     awayStartAt = null;
   }
 
+  const targetRecord = target ? today.apps[target.key] : null;
+  const isDistractingTarget = Boolean(
+    target &&
+    (settings.distractions[target.key] ?? targetRecord?.isDistracting ?? target.isVideoSite ?? target.isPip)
+  );
+  if (canTrack && isActive && settings.focusMode && isDistractingTarget) {
+    focusDistractionStartedAt ??= now;
+    if (!focusWarningShown && now - focusDistractionStartedAt >= FOCUS_DISTRACTION_LIMIT_SECONDS * 1000) {
+      focusWarningShown = true;
+      showFocusWarning();
+    }
+  } else {
+    focusDistractionStartedAt = null;
+    focusWarningShown = false;
+  }
+
   if (canTrack && elapsed > 0 && elapsed < 30) {
     if (isActive) {
       await addUsage(target, elapsed, { countTotal: true, iconSource: appInfo });
@@ -1304,6 +1332,17 @@ ipcMain.handle('sync:now', async () => {
 ipcMain.handle('tracking:toggle', () => {
   const settings = getSettings();
   settings.paused = !settings.paused;
+  saveState();
+  const snapshot = getSnapshot();
+  mainWindow?.webContents.send('usage:update', snapshot);
+  return snapshot;
+});
+
+ipcMain.handle('focus:toggle', () => {
+  const settings = getSettings();
+  settings.focusMode = !settings.focusMode;
+  focusDistractionStartedAt = null;
+  focusWarningShown = false;
   saveState();
   const snapshot = getSnapshot();
   mainWindow?.webContents.send('usage:update', snapshot);

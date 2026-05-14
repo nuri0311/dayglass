@@ -18,9 +18,15 @@ contextBridge.exposeInMainWorld('dayglass', {
     ipcRenderer.on('away:prompt', listener);
     return () => ipcRenderer.removeListener('away:prompt', listener);
   },
+  onFocusWarning: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('focus:warning', listener);
+    return () => ipcRenderer.removeListener('focus:warning', listener);
+  },
   setOpacity: (value) => ipcRenderer.invoke('window:set-opacity', value),
   setSize: (size) => ipcRenderer.invoke('window:set-size', size),
   toggleTracking: () => ipcRenderer.invoke('tracking:toggle'),
+  toggleFocusMode: () => ipcRenderer.invoke('focus:toggle'),
   toggleClock: () => ipcRenderer.invoke('clock:toggle'),
   toggleSeconds: () => ipcRenderer.invoke('time:toggle-seconds'),
   setDayStart: (value) => ipcRenderer.invoke('time:set-day-start', value),
