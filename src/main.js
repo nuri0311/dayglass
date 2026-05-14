@@ -198,7 +198,10 @@ async function checkForUpdate() {
   }
   const release = await response.json();
   const latestVersion = String(release.tag_name || release.name || '').replace(/^v/i, '');
-  const setupAsset = (release.assets || []).find((asset) => /DayGlass Setup .*\.exe$/i.test(asset.name || ''));
+  const setupAsset = (release.assets || []).find((asset) => {
+    const name = String(asset.name || '');
+    return /^DayGlass[ ._-]+Setup[ ._-]+.*\.exe$/i.test(name);
+  });
   const hasUpdate = compareVersions(latestVersion, APP_VERSION) > 0;
   return {
     currentVersion: APP_VERSION,
