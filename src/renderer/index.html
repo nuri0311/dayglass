@@ -23,6 +23,7 @@
                 <span></span>
               </button>
             </div>
+            <button id="settingsBtn" class="settings-toggle" aria-label="Open settings">⚙</button>
             <button id="minimizeBtn" aria-label="Minimize">-</button>
             <button id="closeBtn" aria-label="Close">x</button>
           </div>
@@ -82,24 +83,39 @@
         <button id="clockLogBtn">&#52636;&#53748;&#44540;&#49884;&#44036;</button>
         <button id="clockBtn">&#52636;&#44540;</button>
         <button id="awayBtn">&#51088;&#47532;&#48708;&#50880;</button>
-        <button id="focusModeBtn">집중모드 시작</button>
-        <button id="syncBtn">동기화</button>
-        <button id="dayStartBtn">&#54616;&#47336; &#49884;&#51089;&#49884;&#44036;</button>
-        <button id="awayIdleBtn">&#51088;&#47532;&#48708;&#50880; &#44048;&#51648;&#49884;&#44036;</button>
-        <button id="updateBtn">업데이트 확인</button>
-        <button id="secondsBtn">&#52488; &#49688;&#44592;</button>
       </div>
 
       <div id="appContextMenu" class="app-context-menu" hidden>
         <button id="deleteAppBtn" type="button">&#51648;&#50864;&#44592;</button>
       </div>
 
+      <section id="settingsPanel" class="settings-panel" hidden>
+        <div class="settings-card">
+          <header class="settings-head">
+            <strong>&#49444;&#51221;</strong>
+            <button id="settingsCloseBtn" aria-label="Close settings">x</button>
+          </header>
+          <div id="settingsList" class="settings-list">
+            <button id="secondsBtn">&#52488; &#49688;&#44592;</button>
+            <button id="focusModeBtn">집중모드 시작</button>
+            <button id="syncBtn">동기화</button>
+            <button id="dayStartBtn">&#54616;&#47336; &#49884;&#51089;&#49884;&#44036;</button>
+            <button id="awayIdleBtn">&#51088;&#47532;&#48708;&#50880; &#44048;&#51648;&#49884;&#44036;</button>
+            <button id="updateBtn">업데이트 확인</button>
+          </div>
+        </div>
+      </section>
+
       <section id="historyPanel" class="history-panel" hidden>
         <div class="history-card">
           <header class="history-head">
             <strong>&#44592;&#47197;&#48372;&#44592;</strong>
             <input id="historyDateInput" class="history-date-input" type="date" />
-            <button id="historyCloseBtn" aria-label="Close history">x</button>
+            <div class="history-nav">
+              <button id="historyPrevBtn" data-history-day-offset="-1" aria-label="Previous day">&lt;</button>
+              <button id="historyNextBtn" data-history-day-offset="1" aria-label="Next day">&gt;</button>
+              <button id="historyCloseBtn" aria-label="Close history">x</button>
+            </div>
           </header>
           <div id="historyDetail" class="history-detail"></div>
         </div>

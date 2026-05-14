@@ -17,6 +17,7 @@ const UPDATE_RELEASE_URL = 'https://api.github.com/repos/nuri0311/dayglass/relea
 const ACTIVE_DEVICE_TIMEOUT_MS = 90 * 1000;
 const HEARTBEAT_MS = 15 * 1000;
 const FOCUS_DISTRACTION_LIMIT_SECONDS = 180;
+const MAX_INTERVALS_PER_DAY = 100000;
 const APP_ICON = path.join(__dirname, 'assets', 'app-icon.png');
 const SIZE_PRESETS = {
   compact: { width: 395, height: 218 },
@@ -219,7 +220,8 @@ async function checkForUpdate() {
 
 function getUpdateInstallerPath(info) {
   const version = String(info?.latestVersion || info?.version || APP_VERSION).replace(/[^\dA-Za-z._-]/g, '');
-  return path.join(app.getPath('userData'), 'updates', `DayGlass Setup ${version || 'latest'}.exe`);
+  const stamp = new Date().toISOString().replace(/[^\d]/g, '').slice(0, 14);
+  return path.join(app.getPath('userData'), 'updates', `DayGlass Setup ${version || 'latest'}-${stamp}.exe`);
 }
 
 async function downloadAndInstallUpdate() {
@@ -335,7 +337,7 @@ function mergeIntervals(...intervalGroups) {
       last.end = interval.end;
     }
   }
-  return merged.slice(-5000);
+  return merged.slice(-MAX_INTERVALS_PER_DAY);
 }
 
 function sumIntervals(intervals = []) {
@@ -348,20 +350,37 @@ function addInterval(intervals = [], startAt, endAt) {
   return mergeIntervals(intervals, [{ start: new Date(startAt).toISOString(), end: new Date(endAt).toISOString() }]);
 }
 
+function isAwayRecord(item = {}) {
+  return String(item.key || '').startsWith('away:') || item.processName === 'away';
+}
+
 function getCountedAppIntervals(apps = {}) {
   return Object.values(apps || {})
-    .filter((item) => item.countTotal !== false)
+    .filter((item) => item.countTotal !== false && !isAwayRecord(item))
     .map((item) => item.intervals || []);
 }
 
+function getCountedApps(apps = {}) {
+  return Object.values(apps || {}).filter((item) => item.countTotal !== false && !isAwayRecord(item));
+}
+
+function getSecondsOnlyTotal(items = []) {
+  return items
+    .filter((item) => !(item.intervals || []).length)
+    .reduce((sum, item) => sum + Number(item.seconds || 0), 0);
+}
+
 function getDayTotalIntervals(day = {}, apps = day.apps || {}) {
-  return mergeIntervals(day.totalIntervals || [], ...getCountedAppIntervals(apps));
+  const appIntervals = mergeIntervals(...getCountedAppIntervals(apps));
+  return appIntervals.length ? appIntervals : mergeIntervals(day.totalIntervals || []);
 }
 
 function getDayTotalSeconds(day = {}, apps = day.apps || {}) {
+  const countedApps = getCountedApps(apps);
   const intervals = getDayTotalIntervals(day, apps);
-  if (intervals.length) return sumIntervals(intervals);
-  return Number(day.totalActiveSeconds || 0);
+  if (intervals.length) return sumIntervals(intervals) + getSecondsOnlyTotal(countedApps);
+  const appSeconds = countedApps.reduce((sum, item) => sum + Number(item.seconds || 0), 0);
+  return Number(day.totalActiveSeconds || appSeconds || 0);
 }
 
 function mergeAppRecords(cloudApp = {}, localApp = {}) {
@@ -935,6 +954,7 @@ function buildDaySnapshot(dayKey, day) {
     const normalized = mergedApp
       ? { ...item, ...mergedApp, seconds: item.seconds, intervals: item.intervals, icon: item.icon }
       : item;
+    normalized.isAway = isAwayRecord(normalized);
     normalized.seconds = normalized.intervals?.length ? sumIntervals(normalized.intervals) : normalized.seconds || 0;
     normalized.lastUsedAt ??= day.lastActiveAt || day.updatedAt || null;
     const existing = groupedApps.get(normalized.key);
@@ -946,6 +966,7 @@ function buildDaySnapshot(dayKey, day) {
       existing.icon ??= normalized.icon;
       existing.isVideoSite = existing.isVideoSite || normalized.isVideoSite;
       existing.isPip = existing.isPip || normalized.isPip;
+      existing.isAway = existing.isAway || normalized.isAway;
       existing.isDistracting = existing.isDistracting || normalized.isDistracting;
       if (
         normalized.lastUsedAt &&
@@ -971,15 +992,23 @@ function buildDaySnapshot(dayKey, day) {
       return {
         ...item,
         isDistracting,
+        isAway: isAwayRecord(item),
         icon: item.icon ? `file://${item.icon}` : null
       };
     });
-  const distractSeconds = apps
-    .filter((item) => item.isDistracting)
-    .reduce((sum, item) => sum + item.seconds, 0);
-  const focusSeconds = apps
-    .filter((item) => !item.isDistracting)
-    .reduce((sum, item) => sum + item.seconds, 0);
+  const awayItems = apps.filter((item) => item.isAway);
+  const awayIntervals = awayItems.flatMap((item) => item.intervals || []);
+  const awaySeconds = awayIntervals.length
+    ? sumIntervals(awayIntervals) + getSecondsOnlyTotal(awayItems)
+    : awayItems.reduce((sum, item) => sum + item.seconds, 0);
+  const countedItems = apps.filter((item) => item.countTotal !== false && !item.isAway);
+  const distractItems = countedItems.filter((item) => item.isDistracting);
+  const distractIntervals = distractItems.flatMap((item) => item.intervals || []);
+  const rawDistractSeconds = distractIntervals.length
+    ? sumIntervals(distractIntervals) + getSecondsOnlyTotal(distractItems)
+    : distractItems.reduce((sum, item) => sum + item.seconds, 0);
+  const distractSeconds = Math.min(totalActiveSeconds, rawDistractSeconds);
+  const focusSeconds = Math.max(0, totalActiveSeconds - distractSeconds);
 
   return {
     dayKey,
@@ -988,6 +1017,7 @@ function buildDaySnapshot(dayKey, day) {
     totalActiveSeconds,
     focusSeconds,
     distractSeconds,
+    awaySeconds,
     firstActiveAt: day.firstActiveAt || null,
     lastActiveAt: day.lastActiveAt || null,
     clockInAt: day.clockInAt || null,
@@ -1120,11 +1150,12 @@ async function addAwayUsage(entry) {
       icon: null,
       isVideoSite: false,
       isPip: false,
+      isAway: true,
       isDistracting,
       subtitle: isDistracting ? '\uB534\uC9D3\uC73C\uB85C \uAE30\uB85D' : '\uC77C\uB85C \uAE30\uB85D'
     },
     seconds,
-    { countTotal: true, dayKey, startAt: startedAt, endAt: endedAt }
+    { countTotal: false, dayKey, startAt: startedAt, endAt: endedAt }
   );
 }
 
@@ -1214,7 +1245,7 @@ async function pollUsage() {
   }
 
   if (canTrack && elapsed > 0 && elapsed < 30) {
-    if (isActive) {
+    if (isActive && target.key !== 'app:dayglass') {
       await addUsage(target, elapsed, { countTotal: true, iconSource: appInfo });
     }
 

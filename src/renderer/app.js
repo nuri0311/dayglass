@@ -9,6 +9,10 @@ const emptyState = document.querySelector('#emptyState');
 const opacitySlider = document.querySelector('#opacitySlider');
 const menuBtn = document.querySelector('#menuBtn');
 const menuPanel = document.querySelector('#menuPanel');
+const settingsBtn = document.querySelector('#settingsBtn');
+const settingsPanel = document.querySelector('#settingsPanel');
+const settingsCloseBtn = document.querySelector('#settingsCloseBtn');
+const settingsList = document.querySelector('#settingsList');
 const appContextMenu = document.querySelector('#appContextMenu');
 const deleteAppBtn = document.querySelector('#deleteAppBtn');
 const memoBtn = document.querySelector('#memoBtn');
@@ -20,6 +24,8 @@ const memoSaveBtn = document.querySelector('#memoSaveBtn');
 const historyBtn = document.querySelector('#historyBtn');
 const historyPanel = document.querySelector('#historyPanel');
 const historyCloseBtn = document.querySelector('#historyCloseBtn');
+const historyPrevBtn = document.querySelector('#historyPrevBtn');
+const historyNextBtn = document.querySelector('#historyNextBtn');
 const historyDateInput = document.querySelector('#historyDateInput');
 const historyDetail = document.querySelector('#historyDetail');
 const clockLogBtn = document.querySelector('#clockLogBtn');
@@ -62,10 +68,19 @@ const secondsBtn = document.querySelector('#secondsBtn');
 const sizeButtons = [...document.querySelectorAll('[data-size]')];
 const sortButtons = [...document.querySelectorAll('[data-sort]')];
 let clockMonthDate = new Date();
+let selectedHistoryDayKey = '';
 let awayKind = 'work';
 let awayPanelStartAt = Date.now();
 let awayDurationTimer = null;
 let contextAppKey = null;
+const awayOffLabels = new Set(['휴식', '식사', '커피', '화장실', '산책', '수다', '기타']);
+const awayWorkLabels = new Set(['미팅', '전화', '수업', '공부', '영어']);
+
+settingsList.append(secondsBtn, focusModeBtn, syncBtn, dayStartBtn, awayIdleBtn, updateBtn);
+syncBtn.textContent = '\uB3D9\uAE30\uD654';
+dayStartBtn.textContent = '\uD558\uB8E8 \uC2DC\uC791\uC2DC\uAC04';
+awayIdleBtn.textContent = '\uC790\uB9AC\uBE44\uC6C0 \uAC10\uC9C0\uC2DC\uAC04';
+updateBtn.textContent = '\uC5C5\uB370\uC774\uD2B8 \uD655\uC778';
 
 function formatTime(seconds) {
   const totalMinutes = Math.floor(seconds / 60);
@@ -128,6 +143,7 @@ function emptyHistoryDay(dayKey) {
     totalActiveSeconds: 0,
     focusSeconds: 0,
     distractSeconds: 0,
+    awaySeconds: 0,
     firstActiveAt: null,
     lastActiveAt: null,
     clockInAt: null,
@@ -151,21 +167,28 @@ function getHistoryAppName(app) {
   return app.name || app.processName || 'Unknown App';
 }
 
+function isAwayApp(app = {}) {
+  return Boolean(app.isAway || String(app.key || '').startsWith('away:') || app.processName === 'away');
+}
+
 function getMergedHistoryApps(apps) {
   const grouped = new Map();
   for (const app of apps || []) {
     const name = getHistoryAppName(app);
     const isDistracting = Boolean(app.isDistracting);
-    const key = name;
+    const isAway = isAwayApp(app);
+    const key = `${name}:${isAway ? 'away' : 'usage'}`;
     const existing = grouped.get(key);
     if (existing) {
       existing.seconds += app.seconds || 0;
       existing.distractSeconds += isDistracting ? app.seconds || 0 : 0;
       existing.focusSeconds += isDistracting ? 0 : app.seconds || 0;
+      existing.isAway = existing.isAway || isAway;
       existing.isDistracting = existing.distractSeconds > existing.focusSeconds;
     } else {
       grouped.set(key, {
         name,
+        isAway,
         isDistracting,
         seconds: app.seconds || 0,
         distractSeconds: isDistracting ? app.seconds || 0 : 0,
@@ -186,6 +209,7 @@ function render(snapshot) {
     historyPanel.hidden = true;
     clockPanel.hidden = true;
     memoPanel.hidden = true;
+    settingsPanel.hidden = true;
     syncPanel.hidden = true;
     dayStartPanel.hidden = true;
     awayIdlePanel.hidden = true;
@@ -247,13 +271,17 @@ function render(snapshot) {
     currentBadge.className = 'current-badge';
     currentBadge.textContent = '\uC9C0\uAE08';
 
-    const distractToggle = document.createElement('button');
-    distractToggle.className = 'distract-toggle';
-    distractToggle.classList.toggle('is-distracting', Boolean(app.isDistracting));
-    distractToggle.textContent = app.isDistracting ? '\uB534\uC9D3' : '\uC77C';
-    distractToggle.addEventListener('click', () => {
-      window.dayglass.setDistraction(app.key, !app.isDistracting).then(render);
-    });
+    const kindControl = isAwayApp(app)
+      ? document.createElement('span')
+      : document.createElement('button');
+    kindControl.className = isAwayApp(app) ? 'away-kind-label' : 'distract-toggle';
+    kindControl.classList.toggle('is-distracting', Boolean(app.isDistracting));
+    kindControl.textContent = isAwayApp(app) ? '\uC790\uB9AC\uBE44\uC6C0' : app.isDistracting ? '\uB534\uC9D3' : '\uC77C';
+    if (!isAwayApp(app)) {
+      kindControl.addEventListener('click', () => {
+        window.dayglass.setDistraction(app.key, !app.isDistracting).then(render);
+      });
+    }
 
     const time = document.createElement('time');
     time.textContent = formatTime(app.seconds);
@@ -262,7 +290,7 @@ function render(snapshot) {
     if (app.key === snapshot.currentTargetKey) {
       li.append(currentBadge);
     }
-    li.append(distractToggle, time);
+    li.append(kindControl, time);
     li.addEventListener('contextmenu', (event) => openAppContextMenu(event, app.key));
     appList.append(li);
   }
@@ -278,6 +306,10 @@ function render(snapshot) {
 
 function closeMenu() {
   menuPanel.hidden = true;
+}
+
+function closeSettings() {
+  settingsPanel.hidden = true;
 }
 
 function closeAppContextMenu() {
@@ -315,6 +347,15 @@ function setAwayKind(kind) {
   awayKind = kind === 'off' ? 'off' : 'work';
   awayWorkBtn.classList.toggle('active', awayKind === 'work');
   awayOffBtn.classList.toggle('active', awayKind === 'off');
+}
+
+function syncAwayKindFromLabel() {
+  const label = awayLabelInput.value.trim();
+  if (awayOffLabels.has(label)) {
+    setAwayKind('off');
+  } else if (awayWorkLabels.has(label)) {
+    setAwayKind('work');
+  }
 }
 
 function formatDurationFromMs(ms) {
@@ -394,6 +435,7 @@ function renderHistoryDetail(day) {
 
 function renderHistoryDetailV2(day) {
   historyDetail.innerHTML = '';
+  selectedHistoryDayKey = day.dayKey;
   historyDateInput.value = dayKeyToInputValue(day.dayKey);
 
   const title = document.createElement('div');
@@ -420,6 +462,7 @@ function renderHistoryDetailV2(day) {
     <div><span>\uC0AC\uC6A9</span><strong>${formatTimeWithSeconds(day.totalActiveSeconds)}</strong></div>
     <div><span>\uC77C</span><strong>${formatTimeWithSeconds(day.focusSeconds)}</strong></div>
     <div><span>\uB534\uC9D3</span><strong>${formatTimeWithSeconds(day.distractSeconds)}</strong></div>
+    <div><span>\uC790\uB9AC\uBE44\uC6C0</span><strong>${formatTimeWithSeconds(day.awaySeconds || 0)}</strong></div>
   `;
 
   const list = document.createElement('ul');
@@ -430,8 +473,8 @@ function renderHistoryDetailV2(day) {
     name.className = 'history-app-name';
     name.textContent = app.name;
     const kind = document.createElement('em');
-    kind.className = app.isDistracting ? 'history-kind is-off' : 'history-kind';
-    kind.textContent = app.isDistracting ? '\uB534\uC9D3' : '\uC77C';
+    kind.className = isAwayApp(app) ? 'history-kind is-away' : app.isDistracting ? 'history-kind is-off' : 'history-kind';
+    kind.textContent = isAwayApp(app) ? '\uC790\uB9AC\uBE44\uC6C0' : app.isDistracting ? '\uB534\uC9D3' : '\uC77C';
     const time = document.createElement('strong');
     time.textContent = formatTime(app.seconds);
     item.append(name, kind, time);
@@ -439,6 +482,21 @@ function renderHistoryDetailV2(day) {
   }
 
   historyDetail.append(title, stats, list);
+}
+
+function renderHistoryDay(dayKey) {
+  const days = window.__dayglassHistoryDays || [];
+  const day = days.find((candidate) => candidate.dayKey === dayKey) || emptyHistoryDay(dayKey);
+  renderHistoryDetailV2(day);
+}
+
+function shiftHistoryDay(offset) {
+  const baseValue = selectedHistoryDayKey
+    ? dayKeyToInputValue(selectedHistoryDayKey)
+    : historyDateInput.value || new Date().toISOString().slice(0, 10);
+  const date = new Date(baseValue);
+  date.setDate(date.getDate() + offset);
+  renderHistoryDay(inputValueToDayKey(date.toISOString().slice(0, 10)));
 }
 
 function renderHistory(days) {
@@ -555,11 +613,11 @@ historyCloseBtn.addEventListener('click', () => {
 });
 
 historyDateInput.addEventListener('change', () => {
-  const dayKey = inputValueToDayKey(historyDateInput.value);
-  const days = window.__dayglassHistoryDays || [];
-  const day = days.find((candidate) => candidate.dayKey === dayKey) || emptyHistoryDay(dayKey);
-  renderHistoryDetailV2(day);
+  renderHistoryDay(inputValueToDayKey(historyDateInput.value));
 });
+
+historyPrevBtn.addEventListener('click', () => shiftHistoryDay(-1));
+historyNextBtn.addEventListener('click', () => shiftHistoryDay(1));
 
 clockLogBtn.addEventListener('click', () => {
   closeMenu();
@@ -612,11 +670,13 @@ awayBtn.addEventListener('click', () => {
 
 focusModeBtn.addEventListener('click', () => {
   closeMenu();
+  closeSettings();
   window.dayglass.toggleFocusMode().then(render);
 });
 
 syncBtn.addEventListener('click', () => {
   closeMenu();
+  closeSettings();
   syncPanel.hidden = false;
   window.dayglass.getSyncStatus().then((sync) => {
     renderSyncStatus(sync);
@@ -643,6 +703,7 @@ syncLogoutBtn.addEventListener('click', () => {
 
 updateBtn.addEventListener('click', () => {
   closeMenu();
+  closeSettings();
   window.dayglass.checkUpdate()
     .then((info) => {
       if (!info.hasUpdate) {
@@ -660,6 +721,7 @@ updateBtn.addEventListener('click', () => {
 
 dayStartBtn.addEventListener('click', () => {
   closeMenu();
+  closeSettings();
   dayStartPanel.hidden = false;
   dayStartInput.focus();
 });
@@ -677,6 +739,7 @@ dayStartSaveBtn.addEventListener('click', () => {
 
 awayIdleBtn.addEventListener('click', () => {
   closeMenu();
+  closeSettings();
   awayIdlePanel.hidden = false;
   awayIdleInput.focus();
 });
@@ -694,6 +757,8 @@ awayIdleSaveBtn.addEventListener('click', () => {
 
 awayWorkBtn.addEventListener('click', () => setAwayKind('work'));
 awayOffBtn.addEventListener('click', () => setAwayKind('off'));
+awayLabelInput.addEventListener('change', syncAwayKindFromLabel);
+awayLabelInput.addEventListener('input', syncAwayKindFromLabel);
 
 awayCloseBtn.addEventListener('click', () => closeAwayPanel({ cancel: true }));
 awayCancelBtn.addEventListener('click', () => closeAwayPanel({ cancel: true }));
@@ -703,7 +768,7 @@ awaySaveBtn.addEventListener('click', () => {
   window.dayglass.recordAway({
     label,
     startAt: awayPanelStartAt,
-    isDistracting: awayKind === 'off'
+    isDistracting: awayOffBtn.classList.contains('active')
   }).then((snapshot) => {
     awayPanel.hidden = true;
     window.clearInterval(awayDurationTimer);
@@ -713,6 +778,7 @@ awaySaveBtn.addEventListener('click', () => {
 
 secondsBtn.addEventListener('click', () => {
   closeMenu();
+  closeSettings();
   window.dayglass.toggleSeconds().then(render);
 });
 
@@ -726,11 +792,42 @@ deleteAppBtn.addEventListener('click', () => {
 menuBtn.addEventListener('click', (event) => {
   event.stopPropagation();
   closeAppContextMenu();
+  closeSettings();
   menuPanel.hidden = !menuPanel.hidden;
 });
+
+settingsBtn.addEventListener('click', (event) => {
+  event.stopPropagation();
+  closeMenu();
+  closeAppContextMenu();
+  settingsPanel.hidden = !settingsPanel.hidden;
+});
+
+settingsCloseBtn.addEventListener('click', closeSettings);
+
+document.addEventListener('pointerdown', (event) => {
+  const target = event.target;
+  const isMenuClick = target.closest('.menu-panel') || target.closest('.menu-wrap');
+  const isSettingsClick = target.closest('.settings-card') || target.closest('#settingsBtn');
+  const isContextClick = target.closest('.app-context-menu');
+
+  if (!menuPanel.hidden && !isMenuClick) {
+    closeMenu();
+  }
+  if (!settingsPanel.hidden && !isSettingsClick) {
+    closeSettings();
+  }
+  if (!appContextMenu.hidden && !isContextClick) {
+    closeAppContextMenu();
+  }
+}, true);
+
 document.addEventListener('click', (event) => {
   if (!menuPanel.hidden && !event.target.closest('.menu-wrap') && !event.target.closest('.menu-panel')) {
     closeMenu();
+  }
+  if (!settingsPanel.hidden && !event.target.closest('.settings-card') && !event.target.closest('#settingsBtn')) {
+    closeSettings();
   }
   if (!appContextMenu.hidden && !event.target.closest('.app-context-menu')) {
     closeAppContextMenu();
