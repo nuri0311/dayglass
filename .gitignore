@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.electron-builder-cache/
+*.log
+*.tmp
+*.bak
+*.user
+*.local
+*.env
+*.env.*
+!*.env.example

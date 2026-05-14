@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>자리비움</title>
+    <link rel="stylesheet" href="./away.css" />
+  </head>
+  <body>
+    <main class="away-window">
+      <header>
+        <div>
+          <strong>자리비움</strong>
+          <small id="awayDuration">0:00</small>
+        </div>
+        <button id="awayCloseBtn" aria-label="Close">x</button>
+      </header>
+      <p>자리비움 시작부터 기록을 누른 순간까지 자동 계산돼요.</p>
+      <label>
+        <span>내용</span>
+        <input id="awayLabelInput" list="awayLabelOptions" type="text" value="기타" />
+      </label>
+      <datalist id="awayLabelOptions">
+        <option value="식사"></option>
+        <option value="미팅"></option>
+        <option value="수업"></option>
+        <option value="공부"></option>
+        <option value="영어"></option>
+        <option value="화장실"></option>
+        <option value="수다"></option>
+        <option value="기타"></option>
+      </datalist>
+      <div class="kind">
+        <button id="awayWorkBtn" class="active" type="button">일</button>
+        <button id="awayOffBtn" type="button">딴짓</button>
+      </div>
+      <footer>
+        <button id="awayCancelBtn">취소</button>
+        <button id="awaySaveBtn">기록</button>
+      </footer>
+    </main>
+    <script src="./away.js"></script>
+  </body>
+</html>

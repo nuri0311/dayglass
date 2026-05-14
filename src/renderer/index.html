@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DayGlass Usage</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="panel">
+        <header class="titlebar">
+          <div class="date-block">
+            <p class="eyebrow">DayGlass</p>
+            <h1 id="dateLabel">--</h1>
+            <small id="sessionTime" class="session-time">--</small>
+          </div>
+          <div class="window-actions">
+            <div class="menu-wrap">
+              <button id="menuBtn" class="menu-btn" aria-label="Open menu">
+                <span></span>
+                <span></span>
+                <span></span>
+              </button>
+            </div>
+            <button id="minimizeBtn" aria-label="Minimize">-</button>
+            <button id="closeBtn" aria-label="Close">x</button>
+          </div>
+        </header>
+
+        <section class="stats">
+          <div class="stat">
+            <span>&#44540;&#47924;&#49884;&#44036;</span>
+            <strong id="workdayTime">0:00</strong>
+          </div>
+          <div class="stat total-stat">
+            <span>&#49324;&#50857;&#49884;&#44036;</span>
+            <strong id="totalTime">0:00</strong>
+          </div>
+          <div class="stat">
+            <span>&#51068;</span>
+            <strong id="focusTime">0:00</strong>
+          </div>
+          <div class="stat">
+            <span>&#46388;&#51667;</span>
+            <strong id="distractTime">0:00</strong>
+          </div>
+        </section>
+
+        <section class="list-wrap">
+          <div class="list-head">
+            <span>&#49892;&#54665;&#47785;&#47197;</span>
+            <div class="sort-control" aria-label="Sort apps">
+              <button data-sort="usage" class="active">&#47566;&#51060;&#49324;&#50857;</button>
+              <button data-sort="recent">&#52572;&#49888;</button>
+            </div>
+          </div>
+          <ul id="appList" class="app-list"></ul>
+          <p id="emptyState" class="empty">Apps will appear here after tracking starts.</p>
+        </section>
+
+        <section class="controls">
+          <label class="opacity-control">
+            <span>&#53804;&#47749;&#46020;</span>
+            <input id="opacitySlider" type="range" min="0.35" max="1" step="0.01" value="0.88" />
+          </label>
+          <div class="size-control" aria-label="Size preset">
+            <button data-size="compact">S</button>
+            <button data-size="normal" class="active">M</button>
+            <button data-size="large">L</button>
+          </div>
+        </section>
+
+        <section id="startScreen" class="start-screen">
+          <button id="startDayBtn" type="button">&#52636;&#44540;</button>
+        </section>
+      </section>
+
+      <div id="menuPanel" class="menu-panel" hidden>
+        <button id="memoBtn">Memo</button>
+        <button id="historyBtn">Log</button>
+        <button id="clockLogBtn">&#52636;&#53748;&#44540;&#49884;&#44036;</button>
+        <button id="clockBtn">&#52636;&#44540;</button>
+        <button id="awayBtn">&#51088;&#47532;&#48708;&#50880;</button>
+        <button id="syncBtn">동기화</button>
+        <button id="dayStartBtn">&#54616;&#47336; &#49884;&#51089;&#49884;&#44036;</button>
+        <button id="awayIdleBtn">&#51088;&#47532;&#48708;&#50880; &#44048;&#51648;&#49884;&#44036;</button>
+        <button id="updateBtn">업데이트 확인</button>
+        <button id="secondsBtn">&#52488; &#49688;&#44592;</button>
+      </div>
+
+      <div id="appContextMenu" class="app-context-menu" hidden>
+        <button id="deleteAppBtn" type="button">&#51648;&#50864;&#44592;</button>
+      </div>
+
+      <section id="historyPanel" class="history-panel" hidden>
+        <div class="history-card">
+          <header class="history-head">
+            <strong>&#44592;&#47197;&#48372;&#44592;</strong>
+            <input id="historyDateInput" class="history-date-input" type="date" />
+            <button id="historyCloseBtn" aria-label="Close history">x</button>
+          </header>
+          <div id="historyDetail" class="history-detail"></div>
+        </div>
+      </section>
+
+      <section id="clockPanel" class="clock-panel" hidden>
+        <div class="clock-card">
+          <header class="clock-head">
+            <strong id="clockMonthLabel">--</strong>
+            <div class="clock-nav">
+              <button id="clockPrevBtn" data-month-offset="-1" aria-label="Previous month">&lt;</button>
+              <button id="clockNextBtn" data-month-offset="1" aria-label="Next month">&gt;</button>
+              <button id="clockCloseBtn" aria-label="Close clock log">x</button>
+            </div>
+          </header>
+          <div id="clockCalendar" class="clock-calendar"></div>
+        </div>
+      </section>
+
+      <section id="memoPanel" class="memo-panel" hidden>
+        <div class="memo-card">
+          <header class="memo-head">
+            <strong>Memo</strong>
+            <button id="memoCloseBtn" aria-label="Close memo">x</button>
+          </header>
+          <textarea id="memoText" spellcheck="false" placeholder="&#54624; &#51068;&#51012; &#51201;&#50612;&#46160;&#49464;&#50836;"></textarea>
+          <footer class="memo-actions">
+            <button id="memoClearBtn">Clear</button>
+            <button id="memoSaveBtn">Save</button>
+          </footer>
+        </div>
+      </section>
+
+      <section id="syncPanel" class="day-start-panel" hidden>
+        <div class="sync-card">
+          <header class="day-start-head">
+            <strong>동기화</strong>
+            <button id="syncCloseBtn" aria-label="Close sync settings">x</button>
+          </header>
+          <div class="sync-body">
+            <p id="syncStatusText">&#47196;&#52972; &#47784;&#46300;</p>
+            <input id="syncIdInput" type="text" placeholder="동기화 아이디" autocomplete="off" />
+          </div>
+          <footer class="sync-actions">
+            <button id="syncConnectBtn">연결</button>
+            <button id="syncNowBtn">동기화</button>
+            <button id="syncLogoutBtn">해제</button>
+          </footer>
+        </div>
+      </section>
+
+      <section id="dayStartPanel" class="day-start-panel" hidden>
+        <div class="day-start-card">
+          <header class="day-start-head">
+            <strong>&#54616;&#47336; &#49884;&#51089;&#49884;&#44036;</strong>
+            <button id="dayStartCloseBtn" aria-label="Close day start settings">x</button>
+          </header>
+          <label class="day-start-body">
+            <span>&#49884;&#51089;</span>
+            <input id="dayStartInput" type="time" step="60" value="06:00" />
+          </label>
+          <footer class="day-start-actions">
+            <button id="dayStartSaveBtn">&#51200;&#51109;</button>
+          </footer>
+        </div>
+      </section>
+
+      <section id="awayIdlePanel" class="day-start-panel" hidden>
+        <div class="day-start-card">
+          <header class="day-start-head">
+            <strong>&#51088;&#47532;&#48708;&#50880; &#44048;&#51648;&#49884;&#44036;</strong>
+            <button id="awayIdleCloseBtn" aria-label="Close away idle settings">x</button>
+          </header>
+          <label class="day-start-body">
+            <span>&#48516;</span>
+            <input id="awayIdleInput" type="number" min="1" max="180" step="1" value="1" />
+          </label>
+          <footer class="day-start-actions">
+            <button id="awayIdleSaveBtn">&#51200;&#51109;</button>
+          </footer>
+        </div>
+      </section>
+
+      <section id="awayPanel" class="away-panel" hidden>
+        <div class="away-card">
+          <header class="away-head">
+            <div>
+              <strong>&#51088;&#47532;&#48708;&#50880;</strong>
+              <small id="awayDurationInline">&#49884;&#51089; --:-- · 0:00</small>
+            </div>
+            <button id="awayCloseBtn" aria-label="Close away input">x</button>
+          </header>
+          <div class="away-body">
+            <p id="awayHelp">&#51077;&#47141;&#51060; &#50630;&#45912; &#49884;&#44036;&#51012; &#49892;&#54665;&#47785;&#47197;&#50640; &#44592;&#47197;&#54644;&#50836;.</p>
+            <label>
+              <span>&#45236;&#50857;</span>
+              <input id="awayLabelInput" list="awayLabelOptions" type="text" placeholder="&#44592;&#53440;" />
+            </label>
+            <datalist id="awayLabelOptions">
+              <option value="&#49885;&#49324;"></option>
+              <option value="&#52964;&#54588;"></option>
+              <option value="&#48120;&#54021;"></option>
+              <option value="&#51204;&#54868;"></option>
+              <option value="&#49688;&#50629;"></option>
+              <option value="&#44277;&#48512;"></option>
+              <option value="&#54868;&#51109;&#49892;"></option>
+              <option value="&#49328;&#52293;"></option>
+              <option value="&#55092;&#49885;"></option>
+              <option value="&#49688;&#45796;"></option>
+              <option value="&#50689;&#50612;"></option>
+              <option value="&#44592;&#53440;"></option>
+            </datalist>
+            <div class="away-kind" aria-label="Away kind">
+              <button id="awayWorkBtn" class="active" type="button" data-away-kind="work">&#51068;</button>
+              <button id="awayOffBtn" type="button" data-away-kind="off">&#46388;&#51667;</button>
+            </div>
+          </div>
+          <footer class="away-actions">
+            <button id="awayCancelBtn">&#52712;&#49548;</button>
+            <button id="awaySaveBtn">&#44592;&#47197;</button>
+          </footer>
+        </div>
+      </section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>
