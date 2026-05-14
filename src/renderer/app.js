@@ -203,8 +203,12 @@ function render(snapshot) {
   secondsBtn.textContent = snapshot.showSeconds ? '\uCD08 \uC228\uAE30\uAE30' : '\uCD08 \uBCF4\uAE30';
   clockBtn.textContent = getClockLabel(snapshot.clockAction);
   renderSyncStatus(snapshot.sync);
-  dayStartInput.value = snapshot.dayStartTime || '06:00';
-  awayIdleInput.value = String(snapshot.awayIdleMinutes || 1);
+  if (dayStartPanel.hidden && document.activeElement !== dayStartInput) {
+    dayStartInput.value = snapshot.dayStartTime || '06:00';
+  }
+  if (awayIdlePanel.hidden && document.activeElement !== awayIdleInput) {
+    awayIdleInput.value = String(snapshot.awayIdleMinutes || 1);
+  }
 
   appList.innerHTML = '';
   emptyState.hidden = snapshot.apps.length > 0;
