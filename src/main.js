@@ -1197,12 +1197,12 @@ async function pollUsage() {
     awayStartAt = null;
   }
 
-  const targetRecord = target ? today.apps[target.key] : null;
-  const isDistractingTarget = Boolean(
+  const foregroundRecord = target ? today.apps[target.key] : null;
+  const isDistractingForeground = Boolean(
     target &&
-    (settings.distractions[target.key] ?? targetRecord?.isDistracting ?? target.isVideoSite ?? target.isPip)
+    (settings.distractions[target.key] ?? foregroundRecord?.isDistracting ?? target.isVideoSite)
   );
-  if (canTrack && isActive && settings.focusMode && isDistractingTarget) {
+  if (canTrack && isActive && settings.focusMode && isDistractingForeground) {
     focusDistractionStartedAt ??= now;
     if (!focusWarningShown && now - focusDistractionStartedAt >= FOCUS_DISTRACTION_LIMIT_SECONDS * 1000) {
       focusWarningShown = true;
